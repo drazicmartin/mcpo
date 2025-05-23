@@ -6,7 +6,7 @@ from contextlib import AsyncExitStack, asynccontextmanager
 from typing import Optional
 
 import uvicorn
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.sse import sse_client
