@@ -9,7 +9,7 @@ from typing import Optional, Dict, Any
 from urllib.parse import urljoin
 
 import uvicorn
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.routing import Mount
 

@@ -2,7 +2,7 @@ import json
 import traceback
 from typing import Any, Dict, ForwardRef, List, Optional, Type, Union
 import logging
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 
 from mcp import ClientSession, types
 from mcp.types import (
@@ -282,11 +282,62 @@ def get_tool_handler(
         def make_endpoint_func(
             endpoint_name: str, FormModel, session: ClientSession
         ):  # Parameterized endpoint
-            async def tool(form_data: FormModel) -> Union[ResponseModel, Any]:
+            async def tool(form_data: FormModel, request: Request) -> Union[ResponseModel, Any]:
                 args = form_data.model_dump(exclude_none=True, by_alias=True)
+                
+                # Extract Authorization header from the request
+                authorization_header = request.headers.get("authorization")
+                if authorization_header:
+                    print(f"Found Authorization header: {authorization_header[:20]}...")
+                    
+                    # The key insight: modify the transport headers for this specific request
+                    # Access the transport through the session's write stream
+                    if hasattr(session, '_write_stream') and hasattr(session._write_stream, '_transport'):
+                        transport = session._write_stream._transport
+                        print(f"Found transport: {type(transport)}")
+                        
+                        # Update transport request headers to include Authorization
+                        if hasattr(transport, 'request_headers'):
+                            # Store original headers if not already stored
+                            if not hasattr(transport, '_original_headers'):
+                                transport._original_headers = transport.request_headers.copy()
+                            
+                            # Add authorization header for this request
+                            transport.request_headers = {
+                                **transport._original_headers,
+                                'Authorization': authorization_header
+                            }
+                            print(f"Updated transport headers with Authorization")
+                        else:
+                            print("Transport has no request_headers attribute")
+                    else:
+                        print("Could not access transport through session")
+                
                 logger.info(f"Calling endpoint: {endpoint_name}, with args: {args}")
                 try:
-                    result = await session.call_tool(endpoint_name, arguments=args)
+                    # Create CallToolRequestParams with metadata containing Authorization header
+                    from mcp import types
+                    
+                    call_tool_params = types.CallToolRequestParams(
+                        name=endpoint_name,
+                        arguments=args
+                    )
+                    
+                    # Add Authorization header to metadata if available
+                    if authorization_header:
+                        print(f"Including Authorization header in request metadata")
+                        call_tool_params.meta = {"authorization": authorization_header}
+                    
+                    # Send request directly to include metadata
+                    result = await session.send_request(
+                        types.ClientRequest(
+                            types.CallToolRequest(
+                                method="tools/call",
+                                params=call_tool_params,
+                            )
+                        ),
+                        types.CallToolResult,
+                    )
 
                     if result.isError:
                         error_message = "Unknown tool execution error"
@@ -340,10 +391,36 @@ def get_tool_handler(
         ):  # Parameterless endpoint
             async def tool():  # No parameters
                 logger.info(f"Calling endpoint: {endpoint_name}, with no args")
+                
+                # Get Authorization header for this request
+                authorization_header = request.headers.get("authorization")
+                if authorization_header:
+                    print(f"Found Authorization header for parameterless endpoint")
+                
                 try:
-                    result = await session.call_tool(
-                        endpoint_name, arguments={}
-                    )  # Empty dict
+                    # Create CallToolRequestParams with metadata containing Authorization header
+                    from mcp import types
+                    
+                    call_tool_params = types.CallToolRequestParams(
+                        name=endpoint_name,
+                        arguments={}
+                    )
+                    
+                    # Add Authorization header to metadata if available
+                    if authorization_header:
+                        print(f"Including Authorization header in request metadata for parameterless endpoint")
+                        call_tool_params.meta = {"authorization": authorization_header}
+                    
+                    # Send request directly to include metadata
+                    result = await session.send_request(
+                        types.ClientRequest(
+                            types.CallToolRequest(
+                                method="tools/call",
+                                params=call_tool_params,
+                            )
+                        ),
+                        types.CallToolResult,
+                    )
 
                     if result.isError:
                         error_message = "Unknown tool execution error"
