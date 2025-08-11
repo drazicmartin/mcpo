@@ -288,13 +288,13 @@ def get_tool_handler(
                 # Extract Authorization header from the request
                 authorization_header = request.headers.get("authorization")
                 if authorization_header:
-                    print(f"Found Authorization header: {authorization_header[:20]}...")
+                    logger.info(f"Found Authorization header: {authorization_header[:20]}...")
                     
                     # The key insight: modify the transport headers for this specific request
                     # Access the transport through the session's write stream
                     if hasattr(session, '_write_stream') and hasattr(session._write_stream, '_transport'):
                         transport = session._write_stream._transport
-                        print(f"Found transport: {type(transport)}")
+                        logger.info(f"Found transport: {type(transport)}")
                         
                         # Update transport request headers to include Authorization
                         if hasattr(transport, 'request_headers'):
@@ -307,11 +307,11 @@ def get_tool_handler(
                                 **transport._original_headers,
                                 'Authorization': authorization_header
                             }
-                            print(f"Updated transport headers with Authorization")
+                            logger.info(f"Updated transport headers with Authorization")
                         else:
-                            print("Transport has no request_headers attribute")
+                            logger.info("Transport has no request_headers attribute")
                     else:
-                        print("Could not access transport through session")
+                        logger.info("Could not access transport through session")
                 
                 logger.info(f"Calling endpoint: {endpoint_name}, with args: {args}")
                 try:
@@ -325,7 +325,7 @@ def get_tool_handler(
                     
                     # Add Authorization header to metadata if available
                     if authorization_header:
-                        print(f"Including Authorization header in request metadata")
+                        logger.info(f"Including Authorization header in request metadata")
                         call_tool_params.meta = {"authorization": authorization_header}
                     
                     # Send request directly to include metadata
@@ -395,7 +395,7 @@ def get_tool_handler(
                 # Get Authorization header for this request
                 authorization_header = request.headers.get("authorization")
                 if authorization_header:
-                    print(f"Found Authorization header for parameterless endpoint")
+                    logger.info(f"Found Authorization header for parameterless endpoint")
                 
                 try:
                     # Create CallToolRequestParams with metadata containing Authorization header
@@ -408,7 +408,7 @@ def get_tool_handler(
                     
                     # Add Authorization header to metadata if available
                     if authorization_header:
-                        print(f"Including Authorization header in request metadata for parameterless endpoint")
+                        logger.info(f"Including Authorization header in request metadata for parameterless endpoint")
                         call_tool_params.meta = {"authorization": authorization_header}
                     
                     # Send request directly to include metadata
